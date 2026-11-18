@@ -10,6 +10,7 @@ from flask import Flask, render_template, Response, jsonify, request
 
 app = Flask(__name__)
 
+# Automatically download MediaPipe Hand Landmarker model if not present
 MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hand_landmarker.task")
 MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
 
@@ -18,14 +19,15 @@ if not os.path.exists(MODEL_PATH):
     urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
     print("Model downloaded successfully.")
 
+# Initialize MediaPipe HandLandmarker with tuned thresholds for reliable 2-hand detection across all PCs
 base_options = python.BaseOptions(model_asset_path=MODEL_PATH)
 options = vision.HandLandmarkerOptions(
     base_options=base_options,
     running_mode=vision.RunningMode.VIDEO,
     num_hands=2,
-    min_hand_detection_confidence=0.6,
-    min_hand_presence_confidence=0.6,
-    min_tracking_confidence=0.6
+    min_hand_detection_confidence=0.35,
+    min_hand_presence_confidence=0.35,
+    min_tracking_confidence=0.35
 )
 detector = vision.HandLandmarker.create_from_options(options)
 
@@ -41,7 +43,6 @@ camera = None
 is_camera_active = False
 current_detected_char = "Waiting for gesture..."
 recognition_mode = "alphabet"  # "alphabet" or "numbers"
-current_accent = "en-IN"
 last_timestamp_ms = 0
 
 # Reference Dictionary: ONLY A-Z Alphabets, 0-9 Numbers, and SPACE
@@ -53,7 +54,7 @@ REFERENCE_DICTIONARY = [
     {"symbol": "0", "hands": "1 Hand", "category": "Numbers", "gesture": "All fingers curled into a closed fist (0 fingers up)", "description": "Close all fingers into a fist in Numbers mode."},
     {"symbol": "1", "hands": "1 Hand", "category": "Numbers", "gesture": "1 finger extended (Index straight up)", "description": "Raise 1 finger in Numbers mode."},
     {"symbol": "2", "hands": "1 Hand", "category": "Numbers", "gesture": "2 fingers extended (Index + Middle)", "description": "Raise 2 fingers in Numbers mode."},
-    {"symbol": "3", "hands": "1 Hand", "category": "Numbers", "gesture": "3 fingers extended (Thumb/Index/Middle or 3 fingers)", "description": "Raise 3 fingers in Numbers mode."},
+    {"symbol": "3", "hands": "1 Hand", "category": "Numbers", "gesture": "3 fingers extended", "description": "Raise 3 fingers in Numbers mode."},
     {"symbol": "4", "hands": "1 Hand", "category": "Numbers", "gesture": "4 fingers extended (Thumb tucked)", "description": "Raise 4 fingers in Numbers mode."},
     {"symbol": "5", "hands": "1 Hand", "category": "Numbers", "gesture": "All 5 fingers extended on one hand", "description": "Raise all 5 fingers on one hand in Numbers mode."},
     {"symbol": "6", "hands": "2 Hands", "category": "Numbers", "gesture": "5 fingers on one hand + 1 finger on second hand (6 total)", "description": "Show 5 fingers on one hand and 1 finger on the other."},
@@ -62,7 +63,7 @@ REFERENCE_DICTIONARY = [
     {"symbol": "9", "hands": "2 Hands", "category": "Numbers", "gesture": "5 fingers on one hand + 4 fingers on second hand (9 total)", "description": "Show 5 fingers on one hand and 4 fingers on the other."},
 
     # Alphabets A-Z (Two-Hand Priority + Single-Hand Support)
-    {"symbol": "A", "hands": "2 Hands", "category": "Alphabet", "gesture": "Point index finger to other open hand's THUMB tip", "description": "Hold one hand open and touch its thumb tip with your other index finger."},
+    {"symbol": "A", "hands": "2 Hands (or 1)", "category": "Alphabet", "gesture": "2-Hand: Point index finger to other open hand's THUMB tip | 1-Hand: Fist with thumb on side", "description": "Hold one hand open and touch its thumb tip with your other index finger."},
     {"symbol": "B", "hands": "2 Hands (or 1)", "category": "Alphabet", "gesture": "2-Hand: Both hands form thumb-index circles touching | 1-Hand: 4 fingers up", "description": "Form a ring with thumb and index on each hand and press the two rings together."},
     {"symbol": "C", "hands": "1 Hand", "category": "Alphabet", "gesture": "Thumb and fingers curved into a C arc", "description": "Curve your thumb and fingers into a clear C shape."},
     {"symbol": "D", "hands": "2 Hands (or 1)", "category": "Alphabet", "gesture": "2-Hand: Index & thumb curve onto other upright index | 1-Hand: Index straight up", "description": "Hold one index finger up and touch its top and base with your other thumb and index."},
@@ -92,11 +93,15 @@ REFERENCE_DICTIONARY = [
 
 
 def open_working_camera():
+    """Standardizes webcam resolution across different PCs for consistent FOV and fast 2-hand tracking."""
     backends = [cv2.CAP_DSHOW, cv2.CAP_ANY] if os.name == "nt" else [cv2.CAP_ANY]
     for backend in backends:
         for index in [0, 1, 2]:
             cap = cv2.VideoCapture(index, backend)
             if cap is not None and cap.isOpened():
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                cap.set(cv2.CAP_PROP_FPS, 30)
                 ret, frame = cap.read()
                 if ret and frame is not None:
                     return cap
@@ -144,8 +149,7 @@ def check_two_hand_space(lm1, lm2):
         wrist_dist = dist(lm1[0], lm2[0]) / avg_palm
         mid_tip_dist = dist(lm1[12], lm2[12]) / avg_palm
         pinky_dist = dist(lm1[20], lm2[20]) / avg_palm
-        # Palms pressed together OR open hands side-by-side (book pose)
-        if (wrist_dist < 0.80 and mid_tip_dist < 0.70) or (pinky_dist < 0.55 and wrist_dist < 1.15):
+        if (wrist_dist < 0.85 and mid_tip_dist < 0.75) or (pinky_dist < 0.60 and wrist_dist < 1.20):
             return True
     return False
 
@@ -162,7 +166,7 @@ def classify_numbers_mode(hands):
 
 
 def classify_two_hand_alphabet(lm1, lm2):
-    """High-accuracy dual-hand A-Z classifier (no word collisions)."""
+    """High-accuracy dual-hand A-Z classifier."""
     if check_two_hand_space(lm1, lm2):
         return "SPACE"
 
@@ -174,57 +178,57 @@ def classify_two_hand_alphabet(lm1, lm2):
         p_idx_only = sp["idx"] and not sp["mid"] and not sp["rng"] and not sp["pnk"]
         b_open_all = sb["idx"] and sb["mid"] and sb["rng"] and sb["pnk"]
 
-        # X: Both index fingers extended and crossed/touching at middle joints
+        # X, D, K (Two index fingers interacting)
         if p_idx_only and sb["idx"] and not sb["mid"] and not sb["rng"] and not sb["pnk"]:
-            if dist(ptr[6], base[6]) / avg_palm < 0.45:
+            if dist(ptr[6], base[6]) / avg_palm < 0.48:
                 return "X"
-            if dist(ptr[8], base[8]) / avg_palm < 0.36 and dist(ptr[4], base[5]) / avg_palm < 0.48:
+            if dist(ptr[8], base[8]) / avg_palm < 0.38 and dist(ptr[4], base[5]) / avg_palm < 0.50:
                 return "D"
-            if dist(ptr[8], base[6]) / avg_palm < 0.34:
+            if dist(ptr[8], base[6]) / avg_palm < 0.36:
                 return "K"
 
         # Two-Hand Vowels (A, E, I, O, U) + T (Center of Palm)
         if p_idx_only and b_open_all:
-            if dist(ptr[8], base[4]) / avg_palm < 0.34:
+            if dist(ptr[8], base[4]) / avg_palm < 0.36:
                 return "A"
-            if dist(ptr[8], base[8]) / avg_palm < 0.32:
+            if dist(ptr[8], base[8]) / avg_palm < 0.34:
                 return "E"
-            if dist(ptr[8], base[12]) / avg_palm < 0.32:
+            if dist(ptr[8], base[12]) / avg_palm < 0.34:
                 return "I"
-            if dist(ptr[8], base[16]) / avg_palm < 0.32:
+            if dist(ptr[8], base[16]) / avg_palm < 0.34:
                 return "O"
-            if dist(ptr[8], base[20]) / avg_palm < 0.32:
+            if dist(ptr[8], base[20]) / avg_palm < 0.34:
                 return "U"
-            if dist(ptr[8], base[9]) / avg_palm < 0.38:
+            if dist(ptr[8], base[9]) / avg_palm < 0.40:
                 return "T"
 
         # M (3 fingers on open palm) & N (2 fingers on open palm)
-        if b_open_all and dist(ptr[8], base[9]) / avg_palm < 0.48:
+        if b_open_all and dist(ptr[8], base[9]) / avg_palm < 0.50:
             if sp["idx"] and sp["mid"] and sp["rng"] and not sp["pnk"]:
                 return "M"
             if sp["idx"] and sp["mid"] and not sp["rng"] and not sp["pnk"]:
                 return "N"
 
         # B: Both hands making thumb-index circles touching
-        p_ring = dist(ptr[4], ptr[8]) / sp["palm"] < 0.36
-        b_ring = dist(base[4], base[8]) / sb["palm"] < 0.36
-        if p_ring and b_ring and dist(ptr[8], base[8]) / avg_palm < 0.40:
+        p_ring = dist(ptr[4], ptr[8]) / sp["palm"] < 0.38
+        b_ring = dist(base[4], base[8]) / sb["palm"] < 0.38
+        if p_ring and b_ring and dist(ptr[8], base[8]) / avg_palm < 0.42:
             return "B"
 
         # G: Two closed fists stacked vertically
         p_fist = not (sp["idx"] or sp["mid"] or sp["rng"] or sp["pnk"])
         b_fist = not (sb["idx"] or sb["mid"] or sb["rng"] or sb["pnk"])
-        if p_fist and b_fist and dist(ptr[9], base[9]) / avg_palm < 0.68:
+        if p_fist and b_fist and dist(ptr[9], base[9]) / avg_palm < 0.70:
             return "G"
 
         # S: Both pinkies extended and hooked/touching
         if sp["pnk"] and not sp["idx"] and sb["pnk"] and not sb["idx"]:
-            if dist(ptr[20], base[20]) / avg_palm < 0.38:
+            if dist(ptr[20], base[20]) / avg_palm < 0.40:
                 return "S"
 
         # W: Both open hands overlapped at middle knuckles
         if b_open_all and sp["idx"] and sp["mid"] and sp["rng"] and sp["pnk"]:
-            if dist(ptr[10], base[10]) / avg_palm < 0.42:
+            if dist(ptr[10], base[10]) / avg_palm < 0.44:
                 return "W"
 
     return None
@@ -306,6 +310,9 @@ def generate_frames():
             continue
 
         frame = cv2.flip(frame, 1)
+        # Normalize brightness & contrast across different PC webcams for reliable 2-hand detection
+        frame = cv2.convertScaleAbs(frame, alpha=1.15, beta=12)
+
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
 
@@ -335,7 +342,7 @@ def generate_frames():
             current_detected_char = detected
             mode_tag = "0-9" if recognition_mode == "numbers" else "A-Z"
 
-            cv2.rectangle(frame, (12, 12), (390, 62), (9, 13, 22), -1)
+            cv2.rectangle(frame, (12, 12), (400, 62), (9, 13, 22), -1)
             cv2.putText(
                 frame, f"[{hand_count}H | {mode_tag}] {detected}", (22, 46),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.9, (56, 189, 248), 2, cv2.LINE_AA
