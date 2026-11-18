@@ -10,7 +10,6 @@ from flask import Flask, render_template, Response, jsonify, request
 
 app = Flask(__name__)
 
-# Download official MediaPipe Hand Landmarker model automatically if missing
 MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hand_landmarker.task")
 MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
 
@@ -19,12 +18,11 @@ if not os.path.exists(MODEL_PATH):
     urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
     print("Model downloaded successfully.")
 
-# Initialize MediaPipe HandLandmarker
 base_options = python.BaseOptions(model_asset_path=MODEL_PATH)
 options = vision.HandLandmarkerOptions(
     base_options=base_options,
     running_mode=vision.RunningMode.VIDEO,
-    num_hands=1,
+    num_hands=2,
     min_hand_detection_confidence=0.6,
     min_hand_presence_confidence=0.6,
     min_tracking_confidence=0.6
@@ -41,55 +39,55 @@ HAND_CONNECTIONS = [
 
 camera = None
 is_camera_active = False
-current_detected_word = "Waiting for gesture..."
-current_sign_language = "ASL"
-recognition_mode = "words"  # "words" or "alphabet"
+current_detected_char = "Waiting for gesture..."
+recognition_mode = "alphabet"  # "alphabet" or "numbers"
+current_accent = "en-IN"
 last_timestamp_ms = 0
 
-# Words & Phrases Dictionary
-WORD_DICTIONARY = [
-    {"word": "Hello", "gesture": "All 5 fingers open and spread wide", "category": "Greetings", "lang_note": "ASL / ISL / BSL", "description": "Raise your hand with all five fingers open and spread apart."},
-    {"word": "Bye", "gesture": "4 fingers straight up together, thumb tucked", "category": "Greetings", "lang_note": "ASL / ISL / BSL", "description": "Hold index, middle, ring, and pinky straight up together with thumb folded across palm."},
-    {"word": "Thank You", "gesture": "Flat hand with thumb extended outward", "category": "Greetings", "lang_note": "ASL / ISL", "description": "Keep all four fingers together and straight with your thumb extended to the side."},
-    {"word": "Yes", "gesture": "All fingers curled into a tight closed fist", "category": "Common", "lang_note": "ASL / ISL", "description": "Close all fingers into your palm with thumb resting against the side."},
-    {"word": "No", "gesture": "Only thumb extended outward, 4 fingers closed", "category": "Common", "lang_note": "Universal", "description": "Curl index, middle, ring, and pinky fingers while sticking your thumb out."},
-    {"word": "Good", "gesture": "Thumb pointing straight up, 4 fingers curled", "category": "Common", "lang_note": "Universal / BSL", "description": "Point your thumb straight upward with all other fingers closed."},
-    {"word": "OK", "gesture": "Thumb & index pinched in a circle; 3 fingers up", "category": "Common", "lang_note": "ASL / ISL / BSL", "description": "Touch thumb and index fingertips together while raising middle, ring, and pinky."},
-    {"word": "Peace", "gesture": "Index and middle fingers spread in a V shape", "category": "Common", "lang_note": "ASL / ISL", "description": "Raise index and middle fingers apart in a V while keeping ring and pinky folded."},
-    {"word": "Help", "gesture": "Thumb and index extended in an L-shape", "category": "Common", "lang_note": "ASL", "description": "Extend index finger straight up and thumb straight out at 90 degrees."},
-    {"word": "I Love You", "gesture": "Thumb, index, and pinky extended; middle & ring down", "category": "Phrases", "lang_note": "ASL I-L-Y", "description": "Extend thumb, index, and pinky fingers simultaneously."},
-    {"word": "Call Me", "gesture": "Thumb and pinky extended outward", "category": "Phrases", "lang_note": "ASL", "description": "Fold index, middle, and ring fingers while extending thumb and pinky."},
-    {"word": "Water", "gesture": "Index, middle, and ring spread apart (W-shape)", "category": "Phrases", "lang_note": "ASL", "description": "Raise three middle fingers spread apart while folding thumb and pinky."},
-]
+# Reference Dictionary: ONLY A-Z Alphabets, 0-9 Numbers, and SPACE
+REFERENCE_DICTIONARY = [
+    # Control
+    {"symbol": "SPACE", "hands": "2 Hands", "category": "Control", "gesture": "Both palms pressed together upright OR both open hands side-by-side", "description": "Inserts a space between spelled words."},
 
-# Full A-Z English Alphabet Fingerspelling Dictionary
-ALPHABET_DICTIONARY = [
-    {"word": "A", "gesture": "Closed fist with thumb resting upright on the side of index finger", "category": "Alphabet", "lang_note": "ASL Letter A", "description": "Make a fist with all fingers curled and thumb straight alongside the index finger."},
-    {"word": "B", "gesture": "4 fingers straight up pressed together, thumb folded across palm", "category": "Alphabet", "lang_note": "ASL Letter B", "description": "Hold index, middle, ring, and pinky straight up together; tuck thumb across palm."},
-    {"word": "C", "gesture": "Thumb and fingers curved in a C-arc shape", "category": "Alphabet", "lang_note": "ASL Letter C", "description": "Curve your hand into a C shape as if holding a cup."},
-    {"word": "D", "gesture": "Index finger straight up; thumb touches middle, ring & pinky tips", "category": "Alphabet", "lang_note": "ASL Letter D", "description": "Point index finger straight up while forming a loop with thumb and remaining fingers."},
-    {"word": "E", "gesture": "All fingertips curled down onto the folded thumb", "category": "Alphabet", "lang_note": "ASL Letter E", "description": "Bend all four fingers down so their tips rest above your tucked thumb."},
-    {"word": "F", "gesture": "Thumb & index pinched in a circle; middle, ring, pinky straight up", "category": "Alphabet", "lang_note": "ASL Letter F", "description": "Touch index tip to thumb tip and spread the other three fingers upward."},
-    {"word": "G", "gesture": "Index finger and thumb pointing horizontally to the side", "category": "Alphabet", "lang_note": "ASL Letter G", "description": "Point your index finger and thumb parallel horizontally."},
-    {"word": "H", "gesture": "Index and middle fingers pointing horizontally together", "category": "Alphabet", "lang_note": "ASL Letter H", "description": "Extend index and middle fingers side-by-side pointing horizontally."},
-    {"word": "I", "gesture": "Only pinky finger extended straight up, fist closed", "category": "Alphabet", "lang_note": "ASL Letter I", "description": "Make a fist and raise only your pinky finger straight up."},
-    {"word": "J", "gesture": "Pinky extended while tilting hand inward (J-curve)", "category": "Alphabet", "lang_note": "ASL Letter J", "description": "Extend pinky finger and scoop/tilt wrist inward to trace a J."},
-    {"word": "K", "gesture": "Index & middle up in a V with thumb tucked between them", "category": "Alphabet", "lang_note": "ASL Letter K", "description": "Raise index and middle fingers slightly apart and place thumb tip between them."},
-    {"word": "L", "gesture": "Index straight up and thumb straight out forming an L", "category": "Alphabet", "lang_note": "ASL Letter L", "description": "Extend thumb and index finger at a 90-degree L angle."},
-    {"word": "M", "gesture": "3 fingers (index, middle, ring) folded over tucked thumb", "category": "Alphabet", "lang_note": "ASL Letter M", "description": "Tuck thumb under index, middle, and ring fingers."},
-    {"word": "N", "gesture": "2 fingers (index, middle) folded over tucked thumb", "category": "Alphabet", "lang_note": "ASL Letter N", "description": "Tuck thumb under index and middle fingers."},
-    {"word": "O", "gesture": "All fingertips curved to touch thumb tip in an O ring", "category": "Alphabet", "lang_note": "ASL Letter O", "description": "Bring all fingertips together to meet the thumb tip in a circle."},
-    {"word": "P", "gesture": "Index & middle pointing downward with thumb between", "category": "Alphabet", "lang_note": "ASL Letter P", "description": "Point your K-handshape downward toward the floor."},
-    {"word": "Q", "gesture": "Index finger and thumb pointing straight downward", "category": "Alphabet", "lang_note": "ASL Letter Q", "description": "Point your G-handshape downward toward the floor."},
-    {"word": "R", "gesture": "Index and middle fingers crossed over each other", "category": "Alphabet", "lang_note": "ASL Letter R", "description": "Raise index and middle fingers and cross middle finger behind index."},
-    {"word": "S", "gesture": "Tight closed fist with thumb wrapped across the front of fingers", "category": "Alphabet", "lang_note": "ASL Letter S", "description": "Make a fist and wrap your thumb directly across the front of your curled fingers."},
-    {"word": "T", "gesture": "Fist closed with thumb poking up between index and middle fingers", "category": "Alphabet", "lang_note": "ASL Letter T", "description": "Tuck your thumb tip out between your folded index and middle fingers."},
-    {"word": "U", "gesture": "Index and middle fingers straight up pressed tightly together", "category": "Alphabet", "lang_note": "ASL Letter U", "description": "Hold index and middle fingers upright and touching side-by-side."},
-    {"word": "V", "gesture": "Index and middle fingers straight up spread apart in a V", "category": "Alphabet", "lang_note": "ASL Letter V", "description": "Hold index and middle fingers upright and separated in a V."},
-    {"word": "W", "gesture": "Index, middle, and ring fingers spread upward", "category": "Alphabet", "lang_note": "ASL Letter W", "description": "Raise index, middle, and ring fingers spread apart; fold thumb and pinky."},
-    {"word": "X", "gesture": "Index finger bent like a hook, other fingers closed", "category": "Alphabet", "lang_note": "ASL Letter X", "description": "Curl your index finger into a hook while keeping other fingers closed."},
-    {"word": "Y", "gesture": "Thumb and pinky extended outward, 3 middle fingers closed", "category": "Alphabet", "lang_note": "ASL Letter Y", "description": "Extend thumb and pinky finger outward while folding middle three fingers."},
-    {"word": "Z", "gesture": "Index finger pointing diagonally across (Z-angle)", "category": "Alphabet", "lang_note": "ASL Letter Z", "description": "Extend index finger diagonally across your palm to trace a Z."}
+    # Numbers 0-9
+    {"symbol": "0", "hands": "1 Hand", "category": "Numbers", "gesture": "All fingers curled into a closed fist (0 fingers up)", "description": "Close all fingers into a fist in Numbers mode."},
+    {"symbol": "1", "hands": "1 Hand", "category": "Numbers", "gesture": "1 finger extended (Index straight up)", "description": "Raise 1 finger in Numbers mode."},
+    {"symbol": "2", "hands": "1 Hand", "category": "Numbers", "gesture": "2 fingers extended (Index + Middle)", "description": "Raise 2 fingers in Numbers mode."},
+    {"symbol": "3", "hands": "1 Hand", "category": "Numbers", "gesture": "3 fingers extended (Thumb/Index/Middle or 3 fingers)", "description": "Raise 3 fingers in Numbers mode."},
+    {"symbol": "4", "hands": "1 Hand", "category": "Numbers", "gesture": "4 fingers extended (Thumb tucked)", "description": "Raise 4 fingers in Numbers mode."},
+    {"symbol": "5", "hands": "1 Hand", "category": "Numbers", "gesture": "All 5 fingers extended on one hand", "description": "Raise all 5 fingers on one hand in Numbers mode."},
+    {"symbol": "6", "hands": "2 Hands", "category": "Numbers", "gesture": "5 fingers on one hand + 1 finger on second hand (6 total)", "description": "Show 5 fingers on one hand and 1 finger on the other."},
+    {"symbol": "7", "hands": "2 Hands", "category": "Numbers", "gesture": "5 fingers on one hand + 2 fingers on second hand (7 total)", "description": "Show 5 fingers on one hand and 2 fingers on the other."},
+    {"symbol": "8", "hands": "2 Hands", "category": "Numbers", "gesture": "5 fingers on one hand + 3 fingers on second hand (8 total)", "description": "Show 5 fingers on one hand and 3 fingers on the other."},
+    {"symbol": "9", "hands": "2 Hands", "category": "Numbers", "gesture": "5 fingers on one hand + 4 fingers on second hand (9 total)", "description": "Show 5 fingers on one hand and 4 fingers on the other."},
+
+    # Alphabets A-Z (Two-Hand Priority + Single-Hand Support)
+    {"symbol": "A", "hands": "2 Hands", "category": "Alphabet", "gesture": "Point index finger to other open hand's THUMB tip", "description": "Hold one hand open and touch its thumb tip with your other index finger."},
+    {"symbol": "B", "hands": "2 Hands (or 1)", "category": "Alphabet", "gesture": "2-Hand: Both hands form thumb-index circles touching | 1-Hand: 4 fingers up", "description": "Form a ring with thumb and index on each hand and press the two rings together."},
+    {"symbol": "C", "hands": "1 Hand", "category": "Alphabet", "gesture": "Thumb and fingers curved into a C arc", "description": "Curve your thumb and fingers into a clear C shape."},
+    {"symbol": "D", "hands": "2 Hands (or 1)", "category": "Alphabet", "gesture": "2-Hand: Index & thumb curve onto other upright index | 1-Hand: Index straight up", "description": "Hold one index finger up and touch its top and base with your other thumb and index."},
+    {"symbol": "E", "hands": "2 Hands", "category": "Alphabet", "gesture": "Point index finger to other open hand's INDEX fingertip", "description": "Hold one hand open and touch its index fingertip with your other index finger."},
+    {"symbol": "F", "hands": "1 Hand", "category": "Alphabet", "gesture": "Thumb & index pinched in a circle with 3 fingers raised", "description": "Touch thumb and index tips together while raising middle, ring, and pinky."},
+    {"symbol": "G", "hands": "2 Hands (or 1)", "category": "Alphabet", "gesture": "2-Hand: Two closed fists stacked vertically | 1-Hand: Index & thumb horizontal", "description": "Stack one closed fist on top of your other closed fist."},
+    {"symbol": "H", "hands": "1 Hand", "category": "Alphabet", "gesture": "Index and middle fingers pointing horizontally together", "description": "Point your index and middle fingers horizontally to the side."},
+    {"symbol": "I", "hands": "2 Hands (or 1)", "category": "Alphabet", "gesture": "2-Hand: Point index to other hand's MIDDLE fingertip | 1-Hand: Pinky up", "description": "Hold one hand open and touch its middle fingertip with your other index finger."},
+    {"symbol": "J", "hands": "1 Hand", "category": "Alphabet", "gesture": "Pinky extended and tilted diagonally inward", "description": "Extend only your pinky finger and tilt your wrist inward."},
+    {"symbol": "K", "hands": "2 Hands (or 1)", "category": "Alphabet", "gesture": "2-Hand: Index touches middle joint of other upright index | 1-Hand: V + thumb", "description": "Hold one index finger upright and touch its middle joint with your other index finger."},
+    {"symbol": "L", "hands": "1 Hand", "category": "Alphabet", "gesture": "Thumb and index finger extended in a 90° L-shape", "description": "Extend your index finger straight up and thumb straight out."},
+    {"symbol": "M", "hands": "2 Hands", "category": "Alphabet", "gesture": "Press 3 fingers (index, middle, ring) flat onto other open palm", "description": "Hold one palm open and place 3 fingers of your other hand flat on the palm."},
+    {"symbol": "N", "hands": "2 Hands", "category": "Alphabet", "gesture": "Press 2 fingers (index, middle) flat onto other open palm", "description": "Hold one palm open and place 2 fingers of your other hand flat on the palm."},
+    {"symbol": "O", "hands": "2 Hands (or 1)", "category": "Alphabet", "gesture": "2-Hand: Point index to other hand's RING fingertip | 1-Hand: Fingers in O circle", "description": "Hold one hand open and touch its ring fingertip with your other index finger."},
+    {"symbol": "P", "hands": "1 Hand", "category": "Alphabet", "gesture": "Index and middle fingers pointing straight downward", "description": "Point your index and middle fingers downward toward the floor."},
+    {"symbol": "Q", "hands": "1 Hand", "category": "Alphabet", "gesture": "Only index finger pointing straight downward", "description": "Point your index finger downward toward the floor."},
+    {"symbol": "R", "hands": "1 Hand", "category": "Alphabet", "gesture": "Index and middle fingers crossed over each other", "description": "Raise index and middle fingers and cross them over each other."},
+    {"symbol": "S", "hands": "2 Hands (or 1)", "category": "Alphabet", "gesture": "2-Hand: Both pinky fingers hooked/touching together | 1-Hand: Closed fist", "description": "Extend both pinky fingers and hook/touch them together."},
+    {"symbol": "T", "hands": "2 Hands", "category": "Alphabet", "gesture": "Point index finger into the center of other open palm (T-shape)", "description": "Hold one palm open and point your other index finger into the middle of the palm."},
+    {"symbol": "U", "hands": "2 Hands (or 1)", "category": "Alphabet", "gesture": "2-Hand: Point index to other hand's PINKY fingertip | 1-Hand: 2 fingers together", "description": "Hold one hand open and touch its pinky fingertip with your other index finger."},
+    {"symbol": "V", "hands": "1 Hand", "category": "Alphabet", "gesture": "Index and middle fingers raised and spread apart in a V", "description": "Raise index and middle fingers apart in a V."},
+    {"symbol": "W", "hands": "2 Hands (or 1)", "category": "Alphabet", "gesture": "2-Hand: Both open hands overlapped at fingers | 1-Hand: 3 fingers up", "description": "Overlap/interlock the open fingers of both hands together."},
+    {"symbol": "X", "hands": "2 Hands", "category": "Alphabet", "gesture": "Both index fingers crossed over each other in an X", "description": "Extend both index fingers and cross them in an X shape."},
+    {"symbol": "Y", "hands": "1 Hand", "category": "Alphabet", "gesture": "Thumb and pinky extended outward (hang-loose shape)", "description": "Extend thumb and pinky outward while folding middle three fingers."},
+    {"symbol": "Z", "hands": "1 Hand", "category": "Alphabet", "gesture": "Index finger pointing diagonally across", "description": "Extend only your index finger diagonally across."}
 ]
 
 
@@ -106,172 +104,197 @@ def open_working_camera():
     return None
 
 
-def draw_hand_skeleton(frame, landmarks):
+def draw_hand_skeleton(frame, landmarks, hand_idx=0):
     h, w, _ = frame.shape
     points = [(int(lm.x * w), int(lm.y * h)) for lm in landmarks]
+    line_color = (56, 189, 248) if hand_idx == 0 else (245, 158, 11)
+    dot_color = (16, 185, 129) if hand_idx == 0 else (168, 85, 247)
     for start_idx, end_idx in HAND_CONNECTIONS:
-        cv2.line(frame, points[start_idx], points[end_idx], (56, 189, 248), 2)
+        cv2.line(frame, points[start_idx], points[end_idx], line_color, 2)
     for px, py in points:
-        cv2.circle(frame, (px, py), 5, (16, 185, 129), -1)
+        cv2.circle(frame, (px, py), 5, dot_color, -1)
 
 
 def dist(p1, p2):
     return math.hypot(p1.x - p2.x, p1.y - p2.y)
 
 
-def classify_alphabet(lm, handedness):
-    """Reliable A-Z ASL Alphabet classifier invariant to camera mirroring."""
+def get_finger_states(lm):
+    """Mirror-invariant finger extension detector."""
     palm = max(dist(lm[0], lm[9]), 0.001)
+    idx = dist(lm[8], lm[0]) / palm > 1.35 and lm[8].y < lm[6].y
+    mid = dist(lm[12], lm[0]) / palm > 1.35 and lm[12].y < lm[10].y
+    rng = dist(lm[16], lm[0]) / palm > 1.30 and lm[16].y < lm[14].y
+    pnk = dist(lm[20], lm[0]) / palm > 1.20 and lm[20].y < lm[18].y
+    thm = dist(lm[4], lm[17]) / palm > 0.85 and dist(lm[4], lm[5]) / palm > 0.42
+    count = int(thm) + int(idx) + int(mid) + int(rng) + int(pnk)
+    return {"thm": thm, "idx": idx, "mid": mid, "rng": rng, "pnk": pnk, "count": count, "palm": palm}
 
-    # Finger extension using distance from wrist (more reliable than raw y-axis alone)
+
+def check_two_hand_space(lm1, lm2):
+    """Detects two-hand SPACE gesture (both palms pressed together or open hands side-by-side)."""
+    s1 = get_finger_states(lm1)
+    s2 = get_finger_states(lm2)
+    avg_palm = (s1["palm"] + s2["palm"]) / 2.0
+
+    h1_open = s1["idx"] and s1["mid"] and s1["rng"] and s1["pnk"]
+    h2_open = s2["idx"] and s2["mid"] and s2["rng"] and s2["pnk"]
+
+    if h1_open and h2_open:
+        wrist_dist = dist(lm1[0], lm2[0]) / avg_palm
+        mid_tip_dist = dist(lm1[12], lm2[12]) / avg_palm
+        pinky_dist = dist(lm1[20], lm2[20]) / avg_palm
+        # Palms pressed together OR open hands side-by-side (book pose)
+        if (wrist_dist < 0.80 and mid_tip_dist < 0.70) or (pinky_dist < 0.55 and wrist_dist < 1.15):
+            return True
+    return False
+
+
+def classify_numbers_mode(hands):
+    """Pure 0-9 number classifier across 1 or 2 hands + SPACE."""
+    if len(hands) >= 2 and check_two_hand_space(hands[0], hands[1]):
+        return "SPACE"
+
+    total_fingers = sum(get_finger_states(h)["count"] for h in hands)
+    if 0 <= total_fingers <= 9:
+        return str(total_fingers)
+    return "Unknown"
+
+
+def classify_two_hand_alphabet(lm1, lm2):
+    """High-accuracy dual-hand A-Z classifier (no word collisions)."""
+    if check_two_hand_space(lm1, lm2):
+        return "SPACE"
+
+    s1 = get_finger_states(lm1)
+    s2 = get_finger_states(lm2)
+    avg_palm = (s1["palm"] + s2["palm"]) / 2.0
+
+    for ptr, base, sp, sb in [(lm1, lm2, s1, s2), (lm2, lm1, s2, s1)]:
+        p_idx_only = sp["idx"] and not sp["mid"] and not sp["rng"] and not sp["pnk"]
+        b_open_all = sb["idx"] and sb["mid"] and sb["rng"] and sb["pnk"]
+
+        # X: Both index fingers extended and crossed/touching at middle joints
+        if p_idx_only and sb["idx"] and not sb["mid"] and not sb["rng"] and not sb["pnk"]:
+            if dist(ptr[6], base[6]) / avg_palm < 0.45:
+                return "X"
+            if dist(ptr[8], base[8]) / avg_palm < 0.36 and dist(ptr[4], base[5]) / avg_palm < 0.48:
+                return "D"
+            if dist(ptr[8], base[6]) / avg_palm < 0.34:
+                return "K"
+
+        # Two-Hand Vowels (A, E, I, O, U) + T (Center of Palm)
+        if p_idx_only and b_open_all:
+            if dist(ptr[8], base[4]) / avg_palm < 0.34:
+                return "A"
+            if dist(ptr[8], base[8]) / avg_palm < 0.32:
+                return "E"
+            if dist(ptr[8], base[12]) / avg_palm < 0.32:
+                return "I"
+            if dist(ptr[8], base[16]) / avg_palm < 0.32:
+                return "O"
+            if dist(ptr[8], base[20]) / avg_palm < 0.32:
+                return "U"
+            if dist(ptr[8], base[9]) / avg_palm < 0.38:
+                return "T"
+
+        # M (3 fingers on open palm) & N (2 fingers on open palm)
+        if b_open_all and dist(ptr[8], base[9]) / avg_palm < 0.48:
+            if sp["idx"] and sp["mid"] and sp["rng"] and not sp["pnk"]:
+                return "M"
+            if sp["idx"] and sp["mid"] and not sp["rng"] and not sp["pnk"]:
+                return "N"
+
+        # B: Both hands making thumb-index circles touching
+        p_ring = dist(ptr[4], ptr[8]) / sp["palm"] < 0.36
+        b_ring = dist(base[4], base[8]) / sb["palm"] < 0.36
+        if p_ring and b_ring and dist(ptr[8], base[8]) / avg_palm < 0.40:
+            return "B"
+
+        # G: Two closed fists stacked vertically
+        p_fist = not (sp["idx"] or sp["mid"] or sp["rng"] or sp["pnk"])
+        b_fist = not (sb["idx"] or sb["mid"] or sb["rng"] or sb["pnk"])
+        if p_fist and b_fist and dist(ptr[9], base[9]) / avg_palm < 0.68:
+            return "G"
+
+        # S: Both pinkies extended and hooked/touching
+        if sp["pnk"] and not sp["idx"] and sb["pnk"] and not sb["idx"]:
+            if dist(ptr[20], base[20]) / avg_palm < 0.38:
+                return "S"
+
+        # W: Both open hands overlapped at middle knuckles
+        if b_open_all and sp["idx"] and sp["mid"] and sp["rng"] and sp["pnk"]:
+            if dist(ptr[10], base[10]) / avg_palm < 0.42:
+                return "W"
+
+    return None
+
+
+def classify_single_alphabet(lm):
+    """Single-hand fallback A-Z classifier."""
+    palm = max(dist(lm[0], lm[9]), 0.001)
     idx_ext = dist(lm[8], lm[0]) / palm > 1.35 and lm[8].y < lm[6].y
     mid_ext = dist(lm[12], lm[0]) / palm > 1.35 and lm[12].y < lm[10].y
     rng_ext = dist(lm[16], lm[0]) / palm > 1.30 and lm[16].y < lm[14].y
     pnk_ext = dist(lm[20], lm[0]) / palm > 1.20 and lm[20].y < lm[18].y
 
-    # Downward pointing (P and Q)
     idx_down = lm[8].y > lm[5].y + (0.45 * palm)
     mid_down = lm[12].y > lm[9].y + (0.45 * palm)
-
-    # Horizontal pointing (G and H)
     idx_horiz = abs(lm[8].x - lm[5].x) > abs(lm[8].y - lm[5].y) * 1.25 and dist(lm[8], lm[5]) / palm > 0.50
     mid_horiz = abs(lm[12].x - lm[9].x) > abs(lm[12].y - lm[9].y) * 1.25 and dist(lm[12], lm[9]) / palm > 0.50
 
-    # Mirror-proof thumb check: compare thumb tip distance from pinky knuckle (17) vs index knuckle (5)
     thumb_to_pinky_mcp = dist(lm[4], lm[17]) / palm
     thumb_to_index_mcp = dist(lm[4], lm[5]) / palm
     thumb_out = thumb_to_pinky_mcp > 0.85 and thumb_to_index_mcp > 0.42
-
     pinch_index = dist(lm[4], lm[8]) / palm
-    pinch_mid = dist(lm[4], lm[12]) / palm
     idx_mid_spread = dist(lm[8], lm[12]) / palm
 
-    # 1. Downward Letters: P, Q
     if idx_down and mid_down and not rng_ext and not pnk_ext:
         return "P"
     if idx_down and not mid_down and not rng_ext and not pnk_ext:
         return "Q"
-
-    # 2. Horizontal Letters: G, H
     if idx_horiz and mid_horiz and not rng_ext and not pnk_ext:
         return "H"
     if idx_horiz and not mid_horiz and not rng_ext and not pnk_ext:
         return "G"
-
-    # 3. All 4 Fingers Straight Up: B
     if idx_ext and mid_ext and rng_ext and pnk_ext:
         return "B"
-
-    # 4. Three Fingers Up: F (thumb-index pinch) vs W (spread)
     if not idx_ext and mid_ext and rng_ext and pnk_ext:
         return "F"
     if idx_ext and mid_ext and rng_ext and not pnk_ext:
         return "W"
-
-    # 5. Two Fingers Up (Index + Middle): R, K, V, U
     if idx_ext and mid_ext and not rng_ext and not pnk_ext:
-        # Crossed fingers (R): index tip is closer to ring knuckle (13) than middle tip is
         if dist(lm[8], lm[13]) < dist(lm[12], lm[13]) - 0.015:
             return "R"
-        # Thumb raised between index & middle (K)
         if lm[4].y < lm[6].y and idx_mid_spread > 0.20:
             return "K"
         return "V" if idx_mid_spread > 0.24 else "U"
-
-    # 6. Index Finger Only: L, Z, D
     if idx_ext and not mid_ext and not rng_ext and not pnk_ext:
         if thumb_out:
             return "L"
         if abs(lm[8].x - lm[5].x) / palm > 0.38:
             return "Z"
         return "D"
-
-    # 7. Pinky Finger Only: Y, J, I
     if not idx_ext and not mid_ext and not rng_ext and pnk_ext:
         if thumb_out:
             return "Y"
         if abs(lm[20].x - lm[17].x) / palm > 0.30:
             return "J"
         return "I"
-
-    # 8. Hooked Index Finger: X (PIP joint 6 raised high, tip 8 bent down, other fingers tight)
     if not idx_ext and not mid_ext and not rng_ext and not pnk_ext:
-        if dist(lm[6], lm[0]) / palm > 1.15 and lm[8].y > lm[6].y and dist(lm[12], lm[0]) / palm < 1.05:
-            return "X"
-
-    # 9. Curved Open Hand: O vs C
-    if not idx_ext and not mid_ext and not rng_ext and not pnk_ext:
-        if 0.14 <= pinch_index <= 0.34 and pinch_mid <= 0.38 and dist(lm[8], lm[0]) / palm > 1.05:
+        if 0.14 <= pinch_index <= 0.34 and dist(lm[8], lm[0]) / palm > 1.05:
             return "O"
         if 0.36 < pinch_index < 0.85 and dist(lm[8], lm[0]) / palm > 1.10:
             return "C"
-
-    # 10. Closed Fist Variants: A, T, M, N, E, S
-    if not idx_ext and not mid_ext and not rng_ext and not pnk_ext:
-        # A: Thumb upright on the outer side of index knuckle
         if thumb_to_pinky_mcp > 0.72 and lm[4].y < lm[6].y:
             return "A"
-        # T: Thumb tip tucked right between index PIP (6) and middle PIP (10)
-        if dist(lm[4], lm[6]) / palm < 0.24 and dist(lm[4], lm[10]) / palm < 0.28 and lm[4].y < lm[5].y:
-            return "T"
-        # M: Thumb tucked deep across palm near ring/pinky base (13 or 17)
-        if dist(lm[4], lm[13]) / palm < 0.26 or dist(lm[4], lm[17]) / palm < 0.32:
-            return "M"
-        # N: Thumb tucked under index/middle near middle base (9)
-        if dist(lm[4], lm[9]) / palm < 0.25 and lm[4].y > lm[6].y:
-            return "N"
-        # E: Fingertips curled above thumb tip
-        if lm[8].y < lm[4].y - 0.02 and lm[12].y < lm[4].y - 0.02 and lm[16].y < lm[4].y - 0.02:
-            return "E"
-        # S: Tight closed fist with thumb wrapped across front
         return "S"
 
-    return "Unknown Gesture"
-
-def classify_word_gesture(lm, handedness):
-    """Classifies common words and phrases."""
-    tip_ids = [4, 8, 12, 16, 20]
-    fingers = []
-
-    if handedness == "Right":
-        fingers.append(1 if lm[4].x > lm[3].x else 0)
-    else:
-        fingers.append(1 if lm[4].x < lm[3].x else 0)
-
-    for idx in range(1, 5):
-        fingers.append(1 if lm[tip_ids[idx]].y < lm[tip_ids[idx] - 2].y else 0)
-
-    pattern = tuple(fingers)
-    palm_size = max(dist(lm[0], lm[9]), 0.001)
-    pinch_dist = dist(lm[4], lm[8]) / palm_size
-    spread = dist(lm[8], lm[12]) / palm_size
-
-    if pinch_dist < 0.28 and fingers[2] == 1 and fingers[3] == 1 and fingers[4] == 1:
-        return "OK"
-    if pattern == (1, 0, 0, 0, 0):
-        return "Good" if lm[4].y < lm[5].y - 0.05 else "No"
-    if pattern == (0, 1, 1, 0, 0):
-        return "Peace" if spread > 0.22 else "Number 2"
-    if pattern == (1, 1, 1, 1, 1):
-        return "Hello" if spread > 0.18 else "Thank You"
-    if pattern == (0, 1, 1, 1, 1):
-        return "Bye"
-    if pattern == (0, 0, 0, 0, 0):
-        return "Yes"
-    if pattern == (0, 1, 1, 1, 0):
-        return "Water"
-    if pattern == (1, 1, 0, 0, 1):
-        return "I Love You"
-    if pattern == (1, 0, 0, 0, 1):
-        return "Call Me"
-    if pattern == (1, 1, 0, 0, 0):
-        return "Help"
-
-    return "Unknown Gesture"
+    return "Unknown"
 
 
 def generate_frames():
-    global camera, is_camera_active, current_detected_word, last_timestamp_ms
+    global camera, is_camera_active, current_detected_char, last_timestamp_ms
 
     while is_camera_active:
         if camera is None or not camera.isOpened():
@@ -292,27 +315,33 @@ def generate_frames():
         last_timestamp_ms = now_ms
 
         detection_result = detector.detect_for_video(mp_image, now_ms)
+        hands = detection_result.hand_landmarks
 
-        if detection_result.hand_landmarks:
-            for idx, landmarks in enumerate(detection_result.hand_landmarks):
-                handedness = detection_result.handedness[idx][0].category_name
-                draw_hand_skeleton(frame, landmarks)
+        if hands:
+            for idx, landmarks in enumerate(hands):
+                draw_hand_skeleton(frame, landmarks, hand_idx=idx)
 
-                if recognition_mode == "alphabet":
-                    gesture_text = classify_alphabet(landmarks, handedness)
-                else:
-                    gesture_text = classify_word_gesture(landmarks, handedness)
+            hand_count = len(hands)
+            detected = None
 
-                current_detected_word = gesture_text
+            if recognition_mode == "numbers":
+                detected = classify_numbers_mode(hands)
+            else:
+                if hand_count >= 2:
+                    detected = classify_two_hand_alphabet(hands[0], hands[1])
+                if not detected:
+                    detected = classify_single_alphabet(hands[0])
 
-                label_prefix = "Letter" if recognition_mode == "alphabet" else current_sign_language
-                cv2.rectangle(frame, (12, 12), (380, 62), (9, 13, 22), -1)
-                cv2.putText(
-                    frame, f"[{label_prefix}] {gesture_text}", (22, 46),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.9, (56, 189, 248), 2, cv2.LINE_AA
-                )
+            current_detected_char = detected
+            mode_tag = "0-9" if recognition_mode == "numbers" else "A-Z"
+
+            cv2.rectangle(frame, (12, 12), (390, 62), (9, 13, 22), -1)
+            cv2.putText(
+                frame, f"[{hand_count}H | {mode_tag}] {detected}", (22, 46),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.9, (56, 189, 248), 2, cv2.LINE_AA
+            )
         else:
-            current_detected_word = "No hand detected"
+            current_detected_char = "No hand detected"
 
         ret, buffer = cv2.imencode('.jpg', frame)
         if ret:
@@ -332,34 +361,34 @@ def video_feed():
 
 @app.route('/start_camera', methods=['POST'])
 def start_camera():
-    global camera, is_camera_active, current_detected_word
+    global camera, is_camera_active, current_detected_char
     if is_camera_active and camera is not None and camera.isOpened():
         return jsonify({"status": "started"})
 
     cam = open_working_camera()
     if cam is None:
         is_camera_active = False
-        current_detected_word = "Camera not found"
+        current_detected_char = "Camera not found"
         return jsonify({
             "status": "error",
-            "message": "Could not access webcam. Close Zoom/Teams/Camera app or check Camera privacy settings."
+            "message": "Could not access webcam. Close other camera apps or check Camera permissions."
         }), 500
 
     camera = cam
     is_camera_active = True
-    current_detected_word = "Waiting for gesture..."
+    current_detected_char = "Waiting for gesture..."
     return jsonify({"status": "started"})
 
 
 @app.route('/stop_camera', methods=['POST'])
 def stop_camera():
-    global camera, is_camera_active, current_detected_word
+    global camera, is_camera_active, current_detected_char
     is_camera_active = False
     time.sleep(0.1)
     if camera is not None:
         camera.release()
         camera = None
-    current_detected_word = "Camera stopped"
+    current_detected_char = "Camera stopped"
     return jsonify({"status": "stopped"})
 
 
@@ -367,34 +396,23 @@ def stop_camera():
 def set_mode():
     global recognition_mode
     data = request.get_json(silent=True) or {}
-    mode = data.get("mode", "words")
-    if mode in ["words", "alphabet"]:
+    mode = data.get("mode", "alphabet")
+    if mode in ["alphabet", "numbers"]:
         recognition_mode = mode
     return jsonify({"status": "ok", "mode": recognition_mode})
-
-
-@app.route('/set_language', methods=['POST'])
-def set_language():
-    global current_sign_language
-    data = request.get_json(silent=True) or {}
-    lang = data.get("language", "ASL")
-    if lang in ["ASL", "ISL", "BSL"]:
-        current_sign_language = lang
-    return jsonify({"status": "ok", "language": current_sign_language})
 
 
 @app.route('/get_prediction', methods=['GET'])
 def get_prediction():
     return jsonify({
-        "prediction": current_detected_word,
-        "language": current_sign_language,
+        "prediction": current_detected_char,
         "mode": recognition_mode
     })
 
 
 @app.route('/api/dictionary', methods=['GET'])
 def get_dictionary():
-    return jsonify(WORD_DICTIONARY + ALPHABET_DICTIONARY)
+    return jsonify(REFERENCE_DICTIONARY)
 
 
 @app.route('/api/chat', methods=['POST'])
@@ -402,51 +420,40 @@ def chat_assistant():
     data = request.get_json(silent=True) or {}
     user_msg = data.get("message", "").strip()
     msg_lower = user_msg.lower()
-    all_signs = WORD_DICTIONARY + ALPHABET_DICTIONARY
 
     if not user_msg:
-        return jsonify({"reply": "Ask me how to sign any word or English letter (A–Z)!", "action": None})
+        return jsonify({"reply": "Ask how to sign any letter (A–Z), number (0–9), or SPACE!", "action": None})
 
     if any(k in msg_lower for k in ["start camera", "turn on camera"]):
-        return jsonify({"reply": "Starting your webcam now!", "action": "start_camera"})
+        return jsonify({"reply": "Starting dual-hand camera tracking!", "action": "start_camera"})
 
     if any(k in msg_lower for k in ["stop camera", "turn off camera"]):
-        return jsonify({"reply": "Stopping the webcam feed.", "action": "stop_camera"})
+        return jsonify({"reply": "Stopping camera feed.", "action": "stop_camera"})
 
-    if any(k in msg_lower for k in ["alphabet mode", "spelling mode", "letters mode"]):
-        return jsonify({"reply": "Switched to **Alphabet (A–Z) Fingerspelling Mode**!", "action": "mode_alphabet"})
+    if any(k in msg_lower for k in ["number mode", "numbers mode", "0-9"]):
+        return jsonify({"reply": "Switched to **Numbers (0–9) Mode**! Show 0–5 fingers on one hand, or 6–9 fingers across two hands.", "action": "mode_numbers"})
 
-    if any(k in msg_lower for k in ["word mode", "words mode", "phrase mode"]):
-        return jsonify({"reply": "Switched to **Words & Phrases Mode**!", "action": "mode_words"})
+    if any(k in msg_lower for k in ["alphabet mode", "a-z", "letters mode"]):
+        return jsonify({"reply": "Switched to **Alphabet (A–Z) Mode**!", "action": "mode_alphabet"})
 
-    # Check if user asks how to sign a specific letter (e.g., "how to sign letter M" or "sign R")
-    for item in ALPHABET_DICTIONARY:
-        letter = item["word"].lower()
-        if (f"letter {letter}" in msg_lower or f"sign {letter}" == msg_lower or f"sign {letter}?" in msg_lower or f"do {letter}" in msg_lower):
-            return jsonify({
-                "reply": f"**Letter {item['word']}** (English Fingerspelling):\n• **Hand Shape:** {item['gesture']}\n• **Instructions:** {item['description']}",
-                "action": "insert_word",
-                "word": item["word"]
-            })
-
-    # Check words
-    for item in WORD_DICTIONARY:
-        word_lower = item["word"].lower()
-        if word_lower in msg_lower and any(w in msg_lower for w in ["how", "sign", "gesture", "show", "do", "what is"]):
-            return jsonify({
-                "reply": f"**{item['word']}** ({item['category']}):\n• **Hand Shape:** {item['gesture']}\n• **Instructions:** {item['description']}",
-                "action": "insert_word",
-                "word": item["word"]
-            })
-
-    if any(k in msg_lower for k in ["alphabet", "a to z", "letters", "list signs"]):
+    if "space" in msg_lower:
         return jsonify({
-            "reply": "I support all **26 English Alphabet letters (A–Z)** plus **12 common words/phrases**!\n\nToggle **Alphabet (A–Z)** in the detector header to spell names letter-by-letter, or ask *\"How do I sign letter R?\"*.",
-            "action": None
+            "reply": "**SPACE (2 Hands):** Press both palms together upright (or hold both open palms side-by-side) for 1.5s to insert a space!",
+            "action": "insert_char",
+            "symbol": "SPACE"
         })
 
+    for item in REFERENCE_DICTIONARY:
+        sym = item["symbol"].lower()
+        if f"letter {sym}" in msg_lower or f"number {sym}" in msg_lower or f"sign {sym}" == msg_lower or f"sign {sym}?" in msg_lower:
+            return jsonify({
+                "reply": f"**{item['symbol']}** ({item['category']} | {item['hands']}):\n• **Gesture:** {item['gesture']}\n• **Instructions:** {item['description']}",
+                "action": "insert_char",
+                "symbol": item["symbol"]
+            })
+
     return jsonify({
-        "reply": f"You signed/typed: *\"{user_msg}\"*\n\nTry asking **\"How do I sign letter K?\"** or switch to **Alphabet (A–Z)** mode to spell words!",
+        "reply": "**Dual-Hand Vowels (A, E, I, O, U):**\nHold one hand open and touch its fingertips with your other index finger:\n• **Thumb** = `A` | **Index** = `E` | **Middle** = `I` | **Ring** = `O` | **Pinky** = `U`\n• **Both Palms Together** = `SPACE`",
         "action": None
     })
 

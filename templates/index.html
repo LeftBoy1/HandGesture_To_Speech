@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SignBridge Studio | Words & A–Z Alphabet Sign AI</title>
+    <title>SignBridge Studio | Dual-Hand A–Z & 0–9 Sign AI</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-primary: #090d16;
@@ -19,6 +19,8 @@
             --accent-hover: #0ea5e9;
             --emerald: #10b981;
             --emerald-bg: rgba(16, 185, 129, 0.14);
+            --amber: #f59e0b;
+            --amber-bg: rgba(245, 158, 11, 0.15);
             --rose: #f43f5e;
             --rose-bg: rgba(244, 63, 94, 0.14);
             --text-main: #f9fafb;
@@ -68,19 +70,7 @@
         .brand-text h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.02em; }
         .brand-text p { font-size: 0.75rem; color: var(--text-secondary); }
 
-        .nav-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-
-        .lang-select {
-            background: var(--bg-elevated);
-            color: var(--text-main);
-            border: 1px solid var(--border-active);
-            padding: 7px 12px;
-            border-radius: var(--radius-sm);
-            font-size: 0.82rem;
-            font-weight: 600;
-            cursor: pointer;
-            font-family: inherit;
-        }
+        .nav-controls { display: flex; align-items: center; gap: 12px; }
 
         .status-pill {
             display: flex; align-items: center; gap: 8px;
@@ -129,10 +119,8 @@
         .panel-title {
             font-size: 0.92rem; font-weight: 600; text-transform: uppercase;
             letter-spacing: 0.05em; color: var(--text-secondary);
-            display: flex; align-items: center; gap: 8px;
         }
 
-        /* Mode Switch Tabs */
         .mode-tabs {
             display: inline-flex;
             background: var(--bg-primary);
@@ -141,8 +129,8 @@
             border: 1px solid var(--border-subtle);
         }
         .mode-tab {
-            padding: 5px 12px;
-            font-size: 0.78rem;
+            padding: 6px 14px;
+            font-size: 0.8rem;
             font-weight: 600;
             border: none;
             border-radius: 6px;
@@ -164,7 +152,7 @@
         }
         .camera-stage img { width: 100%; height: 100%; object-fit: cover; display: none; }
 
-        .camera-empty { text-align: center; padding: 32px; max-width: 360px; }
+        .camera-empty { text-align: center; padding: 32px; max-width: 380px; }
         .camera-empty-icon {
             width: 56px; height: 56px; margin: 0 auto 14px; border-radius: 50%;
             background: var(--bg-elevated); display: flex; align-items: center; justify-content: center;
@@ -180,7 +168,7 @@
             padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;
         }
         .hud-label { font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
-        .hud-value { font-family: 'JetBrains Mono', monospace; font-size: 1.25rem; font-weight: 600; color: var(--accent); margin-top: 2px; }
+        .hud-value { font-family: 'JetBrains Mono', monospace; font-size: 1.4rem; font-weight: 700; color: var(--accent); margin-top: 2px; }
 
         .hold-indicator { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
         .hold-bar-bg { width: 110px; height: 6px; background: var(--bg-elevated); border-radius: 99px; overflow: hidden; }
@@ -213,8 +201,9 @@
         .composer-box {
             width: 100%; min-height: 92px; background: var(--bg-primary);
             border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
-            padding: 14px; color: var(--text-main); font-size: 1.05rem;
-            line-height: 1.5; resize: vertical; font-family: inherit;
+            padding: 14px; color: var(--text-main); font-size: 1.15rem;
+            font-family: 'JetBrains Mono', monospace; letter-spacing: 0.04em;
+            line-height: 1.5; resize: vertical;
         }
         .composer-box:focus { outline: none; border-color: var(--accent); }
 
@@ -265,12 +254,12 @@
             padding: 2px 8px; border-radius: 6px; background: var(--bg-elevated);
             color: var(--accent);
         }
-        .lang-badge {
-            display: inline-block; font-size: 0.68rem; font-weight: 500;
-            padding: 2px 8px; border-radius: 6px; background: rgba(16, 185, 129, 0.12);
-            color: var(--emerald);
+        .hands-badge {
+            display: inline-block; font-size: 0.68rem; font-weight: 600;
+            padding: 2px 8px; border-radius: 6px; background: var(--amber-bg);
+            color: var(--amber);
         }
-        .sign-card h3 { font-size: 1.02rem; font-weight: 700; margin-bottom: 4px; }
+        .sign-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 4px; }
         .sign-gesture { font-size: 0.8rem; color: #d1d5db; margin-bottom: 4px; }
         .sign-desc { font-size: 0.78rem; color: var(--text-secondary); }
         .sign-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
@@ -289,7 +278,7 @@
 
         .chat-window {
             position: fixed; bottom: 84px; right: 24px;
-            width: 380px; max-width: calc(100vw - 32px);
+            width: 390px; max-width: calc(100vw - 32px);
             height: 500px; max-height: calc(100vh - 110px);
             background: var(--bg-secondary); border: 1px solid var(--border-active);
             border-radius: var(--radius-lg); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
@@ -358,17 +347,11 @@
             </div>
             <div class="brand-text">
                 <h1>SignBridge Studio</h1>
-                <p>Words, Phrases & Complete A–Z English Fingerspelling</p>
+                <p>Dual-Hand A–Z Alphabet, 0–9 Numbers & SPACE Fingerspelling</p>
             </div>
         </div>
 
         <div class="nav-controls">
-            <select id="signLangSelect" class="lang-select" onchange="changeSignLanguage()">
-                <option value="ASL">🇺🇸 ASL (American)</option>
-                <option value="ISL">🇮🇳 ISL (Indian)</option>
-                <option value="BSL">🇬🇧 BSL (British)</option>
-            </select>
-
             <div id="cameraStatusPill" class="status-pill">
                 <span class="status-dot"></span>
                 <span id="cameraStatusText">Camera Offline</span>
@@ -380,8 +363,8 @@
         <section class="panel">
             <div class="panel-header">
                 <div class="mode-tabs">
-                    <button id="tabWords" class="mode-tab active" onclick="setRecognitionMode('words')">Words & Phrases</button>
-                    <button id="tabAlphabet" class="mode-tab" onclick="setRecognitionMode('alphabet')">Alphabet (A–Z)</button>
+                    <button id="tabAlphabet" class="mode-tab active" onclick="setRecognitionMode('alphabet')">Alphabets (A–Z)</button>
+                    <button id="tabNumbers" class="mode-tab" onclick="setRecognitionMode('numbers')">Numbers (0–9)</button>
                 </div>
 
                 <div class="toolbar-group">
@@ -391,18 +374,18 @@
             </div>
 
             <div class="camera-stage">
-                <img id="videoStream" alt="Live Hand Tracking Stream">
+                <img id="videoStream" alt="Live Dual-Hand Tracking Stream">
                 <div id="cameraPlaceholder" class="camera-empty">
                     <div class="camera-empty-icon">
                         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
                     </div>
-                    <h3 id="placeholderTitle">Camera Feed Inactive</h3>
-                    <p id="placeholderDesc">Click <strong>Start Camera</strong> to recognize words or spell A–Z English letters.</p>
+                    <h3 id="placeholderTitle">Dual-Hand Camera Ready</h3>
+                    <p id="placeholderDesc">Click <strong>Start Camera</strong> to fingerspell <strong>A–Z</strong>, sign <strong>0–9</strong>, or press both palms together for <strong>SPACE</strong>.</p>
                 </div>
 
                 <div class="hud-overlay">
                     <div>
-                        <div class="hud-label">Detected (<span id="hudModeBadge">Words Mode</span>)</div>
+                        <div class="hud-label">Detected (<span id="hudModeBadge">Alphabets A–Z</span>)</div>
                         <div id="livePrediction" class="hud-value">Waiting...</div>
                     </div>
                     <div class="hold-indicator">
@@ -416,21 +399,20 @@
 
             <div class="composer-section">
                 <div class="panel-header">
-                    <span class="panel-title">Sentence & Word Builder</span>
+                    <span class="panel-title">Spelled Text & Number Output</span>
                     <button class="btn btn-ghost btn-sm" onclick="copyText()">Copy Text</button>
                 </div>
 
-                <textarea id="sentenceBox" class="composer-box" placeholder="Switch to Alphabet (A–Z) mode to spell names letter-by-letter, or use Words mode for full signs..."></textarea>
+                <textarea id="sentenceBox" class="composer-box" placeholder="Letters (A–Z) and numbers (0–9) appear here. Press both palms together for SPACE..."></textarea>
 
                 <div class="toolbar">
                     <div class="toolbar-group">
-                        <button class="btn btn-primary" onclick="appendDetectedWord()">+ Add Sign</button>
-                        <button class="btn btn-ghost" onclick="addSpace()">␣ Space</button>
+                        <button class="btn btn-primary" onclick="appendDetectedChar()">+ Add Character</button>
+                        <button class="btn btn-ghost" onclick="addItemToBox('SPACE'); showToast('Added SPACE')">␣ Space</button>
                         <button class="btn btn-ghost" onclick="removeLastItem()">⌫ Backspace</button>
                         <button class="btn btn-rose" onclick="clearSentence()">Clear</button>
                     </div>
                     <div class="toolbar-group">
-                        <button class="btn btn-ghost" onclick="sendSentenceToChat()">💬 Chat</button>
                         <button class="btn btn-emerald" onclick="speakSentence()">🔊 Speak</button>
                     </div>
                 </div>
@@ -442,7 +424,7 @@
                     </label>
                     <label class="switch-label">
                         <input type="checkbox" id="autoSpeakToggle">
-                        <span>Auto-speak each sign</span>
+                        <span>Auto-speak each character</span>
                     </label>
                     <div class="rate-control">
                         <span>Speed:</span>
@@ -455,21 +437,21 @@
 
         <aside class="panel">
             <div class="panel-header">
-                <span class="panel-title">Dictionary & A–Z Reference</span>
-                <span id="dictCount" style="font-size: 0.78rem; color: var(--text-secondary);">38 signs</span>
+                <span class="panel-title">A–Z, 0–9 & SPACE Gesture Guide</span>
+                <span id="dictCount" style="font-size: 0.78rem; color: var(--text-secondary);">37 signs</span>
             </div>
 
             <div class="search-wrapper">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input type="text" id="dictSearch" class="search-input" placeholder="Search words or letters (e.g., Hello, A, M, Z)..." oninput="applyFilters()">
+                <input type="text" id="dictSearch" class="search-input" placeholder="Search A–Z, 0–9, or SPACE..." oninput="applyFilters()">
             </div>
 
             <div class="filter-pills">
-                <button class="pill active" onclick="setCategory('All', this)">All</button>
-                <button class="pill" onclick="setCategory('Alphabet', this)">Alphabet (A–Z)</button>
-                <button class="pill" onclick="setCategory('Greetings', this)">Greetings</button>
-                <button class="pill" onclick="setCategory('Common', this)">Common</button>
-                <button class="pill" onclick="setCategory('Phrases', this)">Phrases</button>
+                <button class="pill active" onclick="setCategory('All', this)">All (37)</button>
+                <button class="pill" onclick="setCategory('Alphabet', this)">Alphabets (A–Z)</button>
+                <button class="pill" onclick="setCategory('Numbers', this)">Numbers (0–9)</button>
+                <button class="pill" onclick="setCategory('2Hands', this)">2-Hand Signs</button>
+                <button class="pill" onclick="setCategory('Control', this)">SPACE</button>
             </div>
 
             <div id="dictionaryContainer" class="dict-scroll"></div>
@@ -479,33 +461,34 @@
     <!-- Floating Chatbot -->
     <button class="chat-launcher" onclick="toggleChat()">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span>Sign Assistant</span>
+        <span>Gesture Guide</span>
     </button>
 
     <div id="chatWindow" class="chat-window">
         <div class="chat-header">
             <div class="chat-header-info">
-                <h3>SignBridge AI Assistant</h3>
-                <span>● Online — Words & A–Z Tutor</span>
+                <h3>SignBridge Gesture Tutor</h3>
+                <span>● Online — A–Z, 0–9 & SPACE</span>
             </div>
             <button class="chat-close" onclick="toggleChat()">✕</button>
         </div>
 
         <div id="chatMessages" class="chat-messages">
-            <div class="msg msg-bot">Hi! I now support all <strong>26 English Alphabet letters (A–Z)</strong> plus common words & phrases! 👋
+            <div class="msg msg-bot">Words are removed so <strong>A–Z</strong>, <strong>0–9</strong>, and <strong>SPACE</strong> never collide!
 
-Ask me <strong>"How do I sign letter R?"</strong> or switch to <strong>Alphabet (A–Z)</strong> mode to fingerspell words.</div>
+• <strong>Vowels (A, E, I, O, U):</strong> Hold one hand open and point your other index finger to its <strong>Thumb (A)</strong>, <strong>Index (E)</strong>, <strong>Middle (I)</strong>, <strong>Ring (O)</strong>, or <strong>Pinky (U)</strong>.
+• <strong>SPACE:</strong> Press both palms together upright.</div>
         </div>
 
         <div class="chat-quick-chips">
-            <button class="chip" onclick="sendQuickPrompt('Alphabet mode')">Switch to A–Z</button>
-            <button class="chip" onclick="sendQuickPrompt('How do I sign letter A?')">Sign Letter A</button>
-            <button class="chip" onclick="sendQuickPrompt('How do I sign letter R?')">Sign Letter R</button>
+            <button class="chip" onclick="sendQuickPrompt('How do two-hand vowels work?')">2-Hand Vowels</button>
+            <button class="chip" onclick="sendQuickPrompt('How do I sign SPACE?')">Sign SPACE</button>
+            <button class="chip" onclick="sendQuickPrompt('Numbers mode')">Numbers (0–9)</button>
             <button class="chip" onclick="sendQuickPrompt('Start camera')">Start camera</button>
         </div>
 
         <div class="chat-input-area">
-            <input type="text" id="chatInput" placeholder="Ask about any letter A–Z or sign..." onkeydown="if(event.key==='Enter') sendChatMessage()">
+            <input type="text" id="chatInput" placeholder="Ask how to sign any letter or number..." onkeydown="if(event.key==='Enter') sendChatMessage()">
             <button class="btn btn-primary btn-sm" onclick="sendChatMessage()">Send</button>
         </div>
     </div>
@@ -516,8 +499,7 @@ Ask me <strong>"How do I sign letter R?"</strong> or switch to <strong>Alphabet 
         let pollingInterval = null;
         let dictionaryData = [];
         let activeCategory = 'All';
-        let selectedLang = 'ASL';
-        let currentMode = 'words'; // 'words' or 'alphabet'
+        let currentMode = 'alphabet';
         let heldGesture = "";
         let holdTicks = 0;
         const TICKS_TO_COMMIT = 3;
@@ -525,52 +507,33 @@ Ask me <strong>"How do I sign letter R?"</strong> or switch to <strong>Alphabet 
 
         const IGNORED_STATES = [
             "Waiting...", "Waiting for gesture...", "No hand detected",
-            "Unknown Gesture", "Camera stopped", "Camera not found"
+            "Unknown", "Camera stopped", "Camera not found"
         ];
-
-        const VOICE_LOCALES = { "ASL": "en-US", "ISL": "en-IN", "BSL": "en-GB" };
 
         function showToast(message) {
             const toast = document.getElementById('toast');
             toast.innerText = message;
             toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 2800);
+            setTimeout(() => toast.classList.remove('show'), 2600);
         }
 
         async function setRecognitionMode(mode) {
             currentMode = mode;
-            document.getElementById('tabWords').classList.toggle('active', mode === 'words');
             document.getElementById('tabAlphabet').classList.toggle('active', mode === 'alphabet');
-            document.getElementById('hudModeBadge').innerText = mode === 'alphabet' ? 'Alphabet A–Z' : 'Words Mode';
+            document.getElementById('tabNumbers').classList.toggle('active', mode === 'numbers');
+            document.getElementById('hudModeBadge').innerText = mode === 'numbers' ? 'Numbers 0–9' : 'Alphabets A–Z';
 
-            // Automatically filter dictionary to Alphabet when switching to A-Z mode
-            if (mode === 'alphabet') {
-                const alphaPill = Array.from(document.querySelectorAll('.pill')).find(p => p.innerText.includes('Alphabet'));
-                if (alphaPill) setCategory('Alphabet', alphaPill);
-            } else {
-                const allPill = document.querySelector('.pill');
-                if (allPill) setCategory('All', allPill);
-            }
+            const pillName = mode === 'numbers' ? 'Numbers' : 'Alphabet';
+            const targetPill = Array.from(document.querySelectorAll('.pill')).find(p => p.innerText.includes(pillName));
+            if (targetPill) setCategory(pillName, targetPill);
 
-            showToast(mode === 'alphabet' ? 'Alphabet (A–Z) Fingerspelling Mode enabled' : 'Words & Phrases Mode enabled');
+            showToast(mode === 'numbers' ? 'Numbers (0–9) Mode enabled' : 'Alphabets (A–Z) Mode enabled');
 
             try {
                 await fetch('/set_mode', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ mode })
-                });
-            } catch (e) {}
-        }
-
-        async function changeSignLanguage() {
-            selectedLang = document.getElementById('signLangSelect').value;
-            showToast(`Switched to ${selectedLang} (${VOICE_LOCALES[selectedLang]} voice)`);
-            try {
-                await fetch('/set_language', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ language: selectedLang })
                 });
             } catch (e) {}
         }
@@ -597,8 +560,8 @@ Ask me <strong>"How do I sign letter R?"</strong> or switch to <strong>Alphabet 
                 placeholder.style.display = "none";
 
                 pill.classList.add('live');
-                statusText.innerText = "Live Tracking";
-                showToast("Camera started!");
+                statusText.innerText = "Dual-Hand Live";
+                showToast("Camera started! Show 1 or 2 hands.");
 
                 if (!pollingInterval) {
                     pollingInterval = setInterval(fetchPrediction, 500);
@@ -636,15 +599,15 @@ Ask me <strong>"How do I sign letter R?"</strong> or switch to <strong>Alphabet 
             try {
                 const res = await fetch('/get_prediction');
                 const data = await res.json();
-                const word = data.prediction;
+                const symbol = data.prediction;
 
-                document.getElementById('livePrediction').innerText = word;
-                highlightDictionaryCard(word);
+                document.getElementById('livePrediction').innerText = symbol;
+                highlightDictionaryCard(symbol);
 
                 const autoAdd = document.getElementById('autoAddToggle').checked;
                 const progressBar = document.getElementById('holdProgress');
 
-                if (IGNORED_STATES.includes(word)) {
+                if (IGNORED_STATES.includes(symbol)) {
                     heldGesture = "";
                     holdTicks = 0;
                     recentlyCommitted = false;
@@ -652,20 +615,20 @@ Ask me <strong>"How do I sign letter R?"</strong> or switch to <strong>Alphabet 
                     return;
                 }
 
-                if (word === heldGesture) {
+                if (symbol === heldGesture) {
                     if (!recentlyCommitted && autoAdd) {
                         holdTicks++;
                         progressBar.style.width = Math.min((holdTicks / TICKS_TO_COMMIT) * 100, 100) + "%";
 
                         if (holdTicks >= TICKS_TO_COMMIT) {
-                            addItemToBox(word);
+                            addItemToBox(symbol);
                             recentlyCommitted = true;
-                            showToast(`Added "${word}"`);
-                            if (document.getElementById('autoSpeakToggle').checked) speakText(word);
+                            showToast(`Added "${symbol}"`);
+                            if (document.getElementById('autoSpeakToggle').checked) speakText(symbol);
                         }
                     }
                 } else {
-                    heldGesture = word;
+                    heldGesture = symbol;
                     holdTicks = 1;
                     recentlyCommitted = false;
                     progressBar.style.width = autoAdd ? "33%" : "0%";
@@ -673,10 +636,10 @@ Ask me <strong>"How do I sign letter R?"</strong> or switch to <strong>Alphabet 
             } catch (err) {}
         }
 
-        function highlightDictionaryCard(detectedWord) {
+        function highlightDictionaryCard(detectedSymbol) {
             document.querySelectorAll('.sign-card').forEach(card => {
-                const cardWord = card.getAttribute('data-word');
-                if (!IGNORED_STATES.includes(detectedWord) && cardWord.toLowerCase() === detectedWord.toLowerCase()) {
+                const cardSym = card.getAttribute('data-symbol');
+                if (!IGNORED_STATES.includes(detectedSymbol) && cardSym.toLowerCase() === detectedSymbol.toLowerCase()) {
                     card.classList.add('highlighted');
                 } else {
                     card.classList.remove('highlighted');
@@ -684,32 +647,23 @@ Ask me <strong>"How do I sign letter R?"</strong> or switch to <strong>Alphabet 
             });
         }
 
-        function appendDetectedWord() {
+        function appendDetectedChar() {
             const current = document.getElementById('livePrediction').innerText;
             if (!IGNORED_STATES.includes(current)) {
                 addItemToBox(current);
                 showToast(`Added "${current}"`);
                 if (document.getElementById('autoSpeakToggle').checked) speakText(current);
             } else {
-                showToast("No valid gesture detected right now.");
+                showToast("No valid letter or number detected right now.");
             }
         }
 
-        function addItemToBox(item) {
+        function addItemToBox(symbol) {
             const box = document.getElementById('sentenceBox');
-            // Single letters (A-Z) join directly without spaces so users can spell words; multi-char words add spaces
-            if (item.length === 1 && /^[A-Z]$/i.test(item)) {
-                box.value += item.toUpperCase();
+            if (symbol === "SPACE") {
+                box.value += " ";
             } else {
-                const trimmed = box.value.trim();
-                box.value = trimmed ? `${trimmed} ${item}` : item;
-            }
-        }
-
-        function addSpace() {
-            const box = document.getElementById('sentenceBox');
-            if (box.value && !box.value.endsWith(' ')) {
-                box.value += ' ';
+                box.value += symbol.toUpperCase();
             }
         }
 
@@ -720,11 +674,11 @@ Ask me <strong>"How do I sign letter R?"</strong> or switch to <strong>Alphabet 
 
         function clearSentence() {
             document.getElementById('sentenceBox').value = "";
-            showToast("Text cleared.");
+            showToast("Cleared.");
         }
 
         function copyText() {
-            const text = document.getElementById('sentenceBox').value.trim();
+            const text = document.getElementById('sentenceBox').value;
             if (!text) return showToast("Nothing to copy.");
             navigator.clipboard.writeText(text);
             showToast("Copied to clipboard!");
@@ -738,14 +692,14 @@ Ask me <strong>"How do I sign letter R?"</strong> or switch to <strong>Alphabet 
             if (!text.trim()) return;
             window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = VOICE_LOCALES[selectedLang] || "en-US";
+            utterance.lang = "en-IN";
             utterance.rate = parseFloat(document.getElementById('speechRate').value);
             window.speechSynthesis.speak(utterance);
         }
 
         function speakSentence() {
             const text = document.getElementById('sentenceBox').value.trim();
-            if (!text) return showToast("Add some letters or words first before speaking.");
+            if (!text) return showToast("Spell a word or enter numbers first.");
             speakText(text);
         }
 
@@ -769,9 +723,15 @@ Ask me <strong>"How do I sign letter R?"</strong> or switch to <strong>Alphabet 
         function applyFilters() {
             const query = document.getElementById('dictSearch').value.toLowerCase();
             const filtered = dictionaryData.filter(item => {
-                const matchesCategory = activeCategory === 'All' || item.category === activeCategory;
+                let matchesCategory = true;
+                if (activeCategory === '2Hands') {
+                    matchesCategory = item.hands && item.hands.includes('2 Hand');
+                } else if (activeCategory !== 'All') {
+                    matchesCategory = item.category === activeCategory;
+                }
+
                 const matchesQuery =
-                    item.word.toLowerCase().includes(query) ||
+                    item.symbol.toLowerCase().includes(query) ||
                     item.gesture.toLowerCase().includes(query) ||
                     item.description.toLowerCase().includes(query);
                 return matchesCategory && matchesQuery;
@@ -784,30 +744,25 @@ Ask me <strong>"How do I sign letter R?"</strong> or switch to <strong>Alphabet 
             document.getElementById('dictCount').innerText = `${items.length} item${items.length === 1 ? '' : 's'}`;
             container.innerHTML = "";
 
-            if (items.length === 0) {
-                container.innerHTML = `<p style="text-align:center; color: var(--text-muted); padding: 24px;">No matching signs or letters found.</p>`;
-                return;
-            }
-
             items.forEach(item => {
-                const isLetter = item.category === 'Alphabet';
-                const displayTitle = isLetter ? `Letter "${item.word}"` : item.word;
+                const title = item.category === 'Alphabet' ? `Letter "${item.symbol}"` :
+                              item.category === 'Numbers' ? `Number "${item.symbol}"` : item.symbol;
                 const card = document.createElement('div');
                 card.className = 'sign-card';
-                card.setAttribute('data-word', item.word);
+                card.setAttribute('data-symbol', item.symbol);
                 card.innerHTML = `
                     <div>
                         <div class="badge-row">
                             <span class="sign-badge">${item.category}</span>
-                            <span class="lang-badge">${item.lang_note || 'ASL'}</span>
+                            <span class="hands-badge">${item.hands}</span>
                         </div>
-                        <h3>${displayTitle}</h3>
-                        <p class="sign-gesture"><strong>Hand Shape:</strong> ${item.gesture}</p>
+                        <h3>${title}</h3>
+                        <p class="sign-gesture"><strong>Gesture:</strong> ${item.gesture}</p>
                         <p class="sign-desc">${item.description}</p>
                     </div>
                     <div class="sign-actions">
-                        <button class="btn btn-primary btn-sm" onclick="addItemToBox('${item.word}'); showToast('Added ${item.word}')">+ Insert</button>
-                        <button class="btn btn-ghost btn-sm" onclick="speakText('${item.word}')">🔊 Listen</button>
+                        <button class="btn btn-primary btn-sm" onclick="addItemToBox('${item.symbol}'); showToast('Added ${item.symbol}')">+ Insert</button>
+                        <button class="btn btn-ghost btn-sm" onclick="speakText('${item.symbol}')">🔊 Listen</button>
                     </div>
                 `;
                 container.appendChild(card);
@@ -825,16 +780,16 @@ Ask me <strong>"How do I sign letter R?"</strong> or switch to <strong>Alphabet 
             return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
         }
 
-        function appendChatMessage(text, sender, extraWord = null) {
+        function appendChatMessage(text, sender, extraSymbol = null) {
             const container = document.getElementById('chatMessages');
             const bubble = document.createElement('div');
             bubble.className = `msg ${sender === 'user' ? 'msg-user' : 'msg-bot'}`;
             bubble.innerHTML = formatMarkdownBold(text);
 
-            if (extraWord && sender === 'bot') {
+            if (extraSymbol && sender === 'bot') {
                 const btnWrap = document.createElement('div');
                 btnWrap.style.marginTop = "8px";
-                btnWrap.innerHTML = `<button class="btn btn-primary btn-sm" onclick="addItemToBox('${extraWord}'); showToast('Inserted ${extraWord}')">+ Insert "${extraWord}"</button>`;
+                btnWrap.innerHTML = `<button class="btn btn-primary btn-sm" onclick="addItemToBox('${extraSymbol}'); showToast('Inserted ${extraSymbol}')">+ Insert "${extraSymbol}"</button>`;
                 bubble.appendChild(btnWrap);
             }
 
@@ -843,15 +798,6 @@ Ask me <strong>"How do I sign letter R?"</strong> or switch to <strong>Alphabet 
         }
 
         function sendQuickPrompt(text) {
-            document.getElementById('chatInput').value = text;
-            sendChatMessage();
-        }
-
-        function sendSentenceToChat() {
-            const text = document.getElementById('sentenceBox').value.trim();
-            if (!text) return showToast("Spell a word or add signs first!");
-            const win = document.getElementById('chatWindow');
-            if (!win.classList.contains('open')) win.classList.add('open');
             document.getElementById('chatInput').value = text;
             sendChatMessage();
         }
@@ -872,12 +818,12 @@ Ask me <strong>"How do I sign letter R?"</strong> or switch to <strong>Alphabet 
                 });
                 const data = await res.json();
 
-                appendChatMessage(data.reply, 'bot', data.word || null);
+                appendChatMessage(data.reply, 'bot', data.symbol || null);
 
                 if (data.action === 'start_camera') startCamera();
                 if (data.action === 'stop_camera') stopCamera();
+                if (data.action === 'mode_numbers') setRecognitionMode('numbers');
                 if (data.action === 'mode_alphabet') setRecognitionMode('alphabet');
-                if (data.action === 'mode_words') setRecognitionMode('words');
             } catch (err) {
                 appendChatMessage("Could not reach the Python backend. Make sure `python app.py` is running.", 'bot');
             }
